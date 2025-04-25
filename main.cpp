@@ -1,106 +1,152 @@
 // wx_calculator.cpp
+// A scientific calculator implementation using wxWidgets
+// Created by Euclidae
+//N.B fix the buttons that do not appear on te sde. I am too tired for this.
+
 #include <wx/wx.h>
 #include <wx/sizer.h>
 #include <wx/textctrl.h>
 #include <cmath>
 #include <vector>
 
+// Main application class
 class CalculatorApp : public wxApp {
 public:
     virtual bool OnInit();
 };
 
+// Main calculator frame
 class CalculatorFrame : public wxFrame {
 public:
     CalculatorFrame(const wxString& title);
 
 private:
+    // UI elements
     wxTextCtrl* display;
     wxCheckBox* radianCheck;
+    wxStaticText* memIndicator;
+    
+    // Calculator state
     double currentValue;
     wxString currentOperation;
     bool newNumber;
     double memoryValue;
     double lastAnswer;
+    
+    // For handling parentheses
     std::vector<double> valueStack;
     std::vector<wxString> operationStack;
 
-    // Button creation helper
-    wxButton* CreateButton(wxPanel* panel, const wxString& label,
+    // Helper method to create buttons with consistent styling
+    wxButton* CreateButton(wxPanel* panel, const wxString& label, 
                           wxColour color = wxNullColour);
 
-    // Event handlers
+    // ---- Event handlers ----
+    
+    // Numeric input
     void OnNumber(wxCommandEvent& event);
+    void OnDecimal(wxCommandEvent& event);
+    
+    // Basic operations
     void OnOperator(wxCommandEvent& event);
     void OnEqual(wxCommandEvent& event);
     void OnClear(wxCommandEvent& event);
     void OnBackspace(wxCommandEvent& event);
+    void OnNegate(wxCommandEvent& event);
+    
+    // Advanced functions
     void OnTrigFunction(wxCommandEvent& event);
     void OnInverseTrigFunction(wxCommandEvent& event);
-    void OnDecimal(wxCommandEvent& event);
-    void OnMemoryOperation(wxCommandEvent& event);
     void OnScientificFunction(wxCommandEvent& event);
-    void OnConstant(wxCommandEvent& event);
-    void OnNegate(wxCommandEvent& event);
-    void OnAnswer(wxCommandEvent& event);
     void OnPower(wxCommandEvent& event);
     void OnSquareRoot(wxCommandEvent& event);
+    
+    // Memory operations
+    void OnMemoryOperation(wxCommandEvent& event);
+    void OnAnswer(wxCommandEvent& event);
+    
+    // Constants and parentheses
+    void OnConstant(wxCommandEvent& event);
     void OnParenthesis(wxCommandEvent& event);
-
-    // Helper methods
+    
+    // ---- Helper methods ----
     void UpdateDisplay(double value);
     double ConvertAngle(double angle);
     double GetDisplayValue();
-    void SetDisplayValue(double value);
+    void UpdateMemoryDisplay();
     void ExecuteOperation(const wxString& op, double value);
 };
 
+// Implement the application class
 wxIMPLEMENT_APP(CalculatorApp);
 
+// Initialize the application
 bool CalculatorApp::OnInit() {
+    // Create the main frame
     CalculatorFrame *frame = new CalculatorFrame("Scientific Calculator");
     frame->Show(true);
     return true;
 }
 
+// Constructor for the calculator frame
 CalculatorFrame::CalculatorFrame(const wxString& title)
     : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(600, 600)),
-      currentValue(0.0), newNumber(true), memoryValue(0.0), lastAnswer(0.0) {
+      currentValue(0.0), 
+      newNumber(true), 
+      memoryValue(0.0), 
+      lastAnswer(0.0) {
 
+    // Create main panel and sizer
     wxPanel* panel = new wxPanel(this);
     wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
 
-    // Display
+    // ---- Display area ----
+    
+    // Create calculator display with large font
     display = new wxTextCtrl(panel, wxID_ANY, "0",
                             wxDefaultPosition, wxDefaultSize,
                             wxTE_RIGHT | wxTE_READONLY);
     display->SetFont(wxFont(24, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
     mainSizer->Add(display, 0, wxEXPAND | wxALL, 10);
 
-    // Control panel (for radians/degrees toggle)
+    // ---- Control area ----
+    
+    // Create control panel with radians/degrees toggle and memory indicator
     wxBoxSizer* controlSizer = new wxBoxSizer(wxHORIZONTAL);
+    
+    // Toggle for radians vs degrees
     radianCheck = new wxCheckBox(panel, wxID_ANY, "Use Radians");
     controlSizer->Add(radianCheck, 0, wxALIGN_LEFT | wxALL, 5);
-
-    // Add "M" indicator for memory
-    wxStaticText* memIndicator = new wxStaticText(panel, wxID_ANY, "Memory: 0.0");
+    
+    // Memory value display
+    memIndicator = new wxStaticText(panel, wxID_ANY, "Memory: 0");
     controlSizer->Add(memIndicator, 0, wxALIGN_RIGHT | wxALL, 5);
-
+    
     mainSizer->Add(controlSizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
-    // Button panel
+    // ---- Button area ----
+    
     wxBoxSizer* buttonSizer = new wxBoxSizer(wxHORIZONTAL);
-
-    // Memory and function buttons (left side)
+    
+    // Left side: Memory and function buttons
     wxGridSizer* memoryGrid = new wxGridSizer(7, 2, 3, 3);
+    
+    // Define memory and special function buttons
     const wxString memoryButtons[] = {
-        "MC", "MR", "M+", "M-", "MS", "Ans", "ln", "log",
-        "e^x", "10^x", "x^2", "x^3", "sqrt", "cbrt"
+        "MC", "MR",        // Memory clear, recall
+        "M+", "M-",        // Memory add, subtract
+        "MS", "Ans",       // Memory store, last answer
+        "ln", "log",       // Natural log, log base 10
+        "e^x", "10^x",     // Exponential functions
+        "x^2", "x^3",      // Square and cube
+        "sqrt", "cbrt"     // Square root and cube root
     };
-
+    
+    // Create memory and function buttons
     for (const wxString& label : memoryButtons) {
         wxButton* btn = CreateButton(panel, label, wxColour(180, 180, 220));
-
+        
+        // Attach event handlers based on button type
         if (label == "MC" || label == "MR" || label == "M+" || label == "M-" || label == "MS") {
             btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnMemoryOperation, this);
         }
@@ -116,27 +162,41 @@ CalculatorFrame::CalculatorFrame(const wxString& title)
         else {
             btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnScientificFunction, this);
         }
-
+        
         memoryGrid->Add(btn, 0, wxEXPAND);
     }
-
+    
     buttonSizer->Add(memoryGrid, 0, wxEXPAND | wxRIGHT, 5);
-
-    // Main calculator buttons (center)
+    
+    // Main calculator buttons
     wxGridSizer* mainGrid = new wxGridSizer(6, 5, 3, 3);
-
+    
+    // Define main calculator buttons
     const wxString mainButtons[] = {
+        // Row 1: Trigonometric functions and parentheses
         "sin", "cos", "tan", "(", ")",
+        
+        // Row 2: Inverse trig functions and constants
         "asin", "acos", "atan", "π", "e",
+        
+        // Row 3: Numbers and operations
         "7", "8", "9", "/", "C",
+        
+        // Row 4: Numbers and operations
         "4", "5", "6", "*", "⌫",
+        
+        // Row 5: Numbers and operations
         "1", "2", "3", "-", "±",
+        
+        // Row 6: Zero, decimal, equals, operations
         "0", ".", "=", "+", "^"
     };
-
+    
+    // Create main calculator buttons
     for (const wxString& label : mainButtons) {
         wxColour color = wxNullColour;
-
+        
+        // Color-code buttons by function
         if (label == "sin" || label == "cos" || label == "tan") {
             color = wxColour(255, 215, 0);  // Gold for trig functions
         }
@@ -158,9 +218,10 @@ CalculatorFrame::CalculatorFrame(const wxString& title)
         else if (label == "π" || label == "e") {
             color = wxColour(200, 200, 100);  // Yellow-ish for constants
         }
-
+        
         wxButton* btn = CreateButton(panel, label, color);
-
+        
+        // Attach event handlers based on button type
         if (label == "sin" || label == "cos" || label == "tan") {
             btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnTrigFunction, this);
         }
@@ -179,12 +240,11 @@ CalculatorFrame::CalculatorFrame(const wxString& title)
         else if (label == "±") {
             btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnNegate, this);
         }
-        else if (label == "." || (label.Length() == 1 && wxString("0123456789").Contains(label))) {
-            if (label == ".") {
-                btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnDecimal, this);
-            } else {
-                btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnNumber, this);
-            }
+        else if (label == ".") {
+            btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnDecimal, this);
+        }
+        else if (label.Length() == 1 && wxString("0123456789").Contains(label)) {
+            btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnNumber, this);
         }
         else if (label == "π" || label == "e") {
             btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnConstant, this);
@@ -195,33 +255,35 @@ CalculatorFrame::CalculatorFrame(const wxString& title)
         else if (wxString("+-*/^").Contains(label)) {
             btn->Bind(wxEVT_BUTTON, &CalculatorFrame::OnOperator, this);
         }
-
+        
         mainGrid->Add(btn, 0, wxEXPAND);
     }
-
+    
     buttonSizer->Add(mainGrid, 1, wxEXPAND, 0);
-
     mainSizer->Add(buttonSizer, 1, wxEXPAND | wxALL, 10);
-
+    
+    // Set up the panel with the main sizer
     panel->SetSizer(mainSizer);
     Center();
 }
 
+// Create a styled button with consistent formatting
 wxButton* CalculatorFrame::CreateButton(wxPanel* panel, const wxString& label, wxColour color) {
     wxButton* btn = new wxButton(panel, wxID_ANY, label);
     btn->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
-
+    
     if (color != wxNullColour) {
         btn->SetBackgroundColour(color);
     }
-
+    
     return btn;
 }
 
+// Handle number button clicks
 void CalculatorFrame::OnNumber(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     wxString value = btn->GetLabel();
-
+    
     if (newNumber) {
         display->SetValue(value);
         newNumber = false;
@@ -231,66 +293,87 @@ void CalculatorFrame::OnNumber(wxCommandEvent& event) {
     }
 }
 
+// Handle operator button clicks
 void CalculatorFrame::OnOperator(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     wxString op = btn->GetLabel();
-
+    
+    // If we have an existing number, process it first
     if (!newNumber) {
         double value = GetDisplayValue();
-
+        
         if (!operationStack.empty()) {
             ExecuteOperation(currentOperation, value);
         } else {
             currentValue = value;
         }
     }
-
+    
     currentOperation = op;
     newNumber = true;
 }
 
+// Handle equals button click
 void CalculatorFrame::OnEqual(wxCommandEvent& event) {
+    // Simple case (no parentheses)
     if (operationStack.empty()) {
         double secondValue = GetDisplayValue();
-
-        if (currentOperation == "+") currentValue += secondValue;
-        else if (currentOperation == "-") currentValue -= secondValue;
-        else if (currentOperation == "*") currentValue *= secondValue;
+        double result = currentValue;
+        
+        // Perform the operation
+        if (currentOperation == "+") {
+            result += secondValue;
+        } 
+        else if (currentOperation == "-") {
+            result -= secondValue;
+        }
+        else if (currentOperation == "*") {
+            result *= secondValue;
+        }
         else if (currentOperation == "/") {
             if (secondValue != 0) {
-                currentValue /= secondValue;
+                result /= secondValue;
             } else {
-                wxMessageBox("Division by zero!", "Error", wxICON_ERROR);
+                wxMessageBox("Division by zero is not allowed", "Error", wxICON_ERROR);
                 OnClear(event);
                 return;
             }
         }
         else if (currentOperation == "^") {
-            currentValue = pow(currentValue, secondValue);
+            result = pow(result, secondValue);
         }
-
-        UpdateDisplay(currentValue);
-        lastAnswer = currentValue;
-    } else {
-        // Handle stack-based calculation (parentheses)
-        // This is just a basic implementation
+        
+        // Display the result
+        UpdateDisplay(result);
+        lastAnswer = result;
+    } 
+    // Complex case with parentheses
+    else {
         double result = GetDisplayValue();
-
+        
+        // Process operations from the stack
         while (!operationStack.empty()) {
             wxString op = operationStack.back();
             operationStack.pop_back();
-
+            
             double val = valueStack.back();
             valueStack.pop_back();
-
-            if (op == "+") result = val + result;
-            else if (op == "-") result = val - result;
-            else if (op == "*") result = val * result;
+            
+            // Perform the operation
+            if (op == "+") {
+                result = val + result;
+            }
+            else if (op == "-") {
+                result = val - result;
+            }
+            else if (op == "*") {
+                result = val * result;
+            }
             else if (op == "/") {
                 if (result != 0) {
                     result = val / result;
                 } else {
-                    wxMessageBox("Division by zero!", "Error", wxICON_ERROR);
+                    wxMessageBox("Division by zero is not allowed", "Error", wxICON_ERROR);
                     OnClear(event);
                     return;
                 }
@@ -299,71 +382,108 @@ void CalculatorFrame::OnEqual(wxCommandEvent& event) {
                 result = pow(val, result);
             }
         }
-
+        
         currentValue = result;
         UpdateDisplay(result);
         lastAnswer = result;
     }
-
+    
     newNumber = true;
 }
 
+// Handle trigonometric function buttons
 void CalculatorFrame::OnTrigFunction(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     double value = GetDisplayValue();
     double result = 0.0;
-
+    
+    // Convert to radians if needed
     value = ConvertAngle(value);
-
-    if (btn->GetLabel() == "sin") result = sin(value);
-    else if (btn->GetLabel() == "cos") result = cos(value);
-    else if (btn->GetLabel() == "tan") result = tan(value);
-
+    
+    // Calculate the result
+    if (btn->GetLabel() == "sin") {
+        result = sin(value);
+    }
+    else if (btn->GetLabel() == "cos") {
+        result = cos(value);
+    }
+    else if (btn->GetLabel() == "tan") {
+        // Check for undefined values (multiples of π/2)
+        if (fabs(fmod(value, M_PI)) < 1e-10 && fabs(fmod(value, M_PI_2)) < 1e-10) {
+            wxMessageBox("Tangent is undefined at this value", "Error", wxICON_ERROR);
+            return;
+        }
+        result = tan(value);
+    }
+    
     UpdateDisplay(result);
     lastAnswer = result;
     newNumber = true;
 }
 
+// Handle inverse trigonometric function buttons
 void CalculatorFrame::OnInverseTrigFunction(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     double value = GetDisplayValue();
     double result = 0.0;
-
-    // For inverse trig functions, we get the result in radians, then convert if needed
-    if (btn->GetLabel() == "asin") result = asin(value);
-    else if (btn->GetLabel() == "acos") result = acos(value);
-    else if (btn->GetLabel() == "atan") result = atan(value);
-
-    // Convert back to degrees if not using radians
+    
+    // Handle domain errors
+    if (btn->GetLabel() == "asin" && (value < -1 || value > 1)) {
+        wxMessageBox("Arcsin domain error: value must be between -1 and 1", "Error", wxICON_ERROR);
+        return;
+    }
+    else if (btn->GetLabel() == "acos" && (value < -1 || value > 1)) {
+        wxMessageBox("Arccos domain error: value must be between -1 and 1", "Error", wxICON_ERROR);
+        return;
+    }
+    
+    // Calculate inverse trig function (result is in radians)
+    if (btn->GetLabel() == "asin") {
+        result = asin(value);
+    }
+    else if (btn->GetLabel() == "acos") {
+        result = acos(value);
+    }
+    else if (btn->GetLabel() == "atan") {
+        result = atan(value);
+    }
+    
+    // Convert to degrees if needed
     if (!radianCheck->GetValue()) {
         result = result * 180.0 / M_PI;
     }
-
+    
     UpdateDisplay(result);
     lastAnswer = result;
     newNumber = true;
 }
 
+// Handle clear button
 void CalculatorFrame::OnClear(wxCommandEvent& event) {
     display->SetValue("0");
     currentValue = 0.0;
     newNumber = true;
+    
+    // Clear stacks for parentheses
     valueStack.clear();
     operationStack.clear();
 }
 
+// Handle backspace button
 void CalculatorFrame::OnBackspace(wxCommandEvent& event) {
     wxString current = display->GetValue();
-
+    
     if (current.Length() > 1) {
         current.RemoveLast();
         display->SetValue(current);
-    } else {
+    } 
+    else {
         display->SetValue("0");
         newNumber = true;
     }
 }
 
+// Handle decimal point button
 void CalculatorFrame::OnDecimal(wxCommandEvent& event) {
     if (newNumber) {
         display->SetValue("0.");
@@ -374,46 +494,45 @@ void CalculatorFrame::OnDecimal(wxCommandEvent& event) {
     }
 }
 
+// Handle memory operation buttons
 void CalculatorFrame::OnMemoryOperation(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     wxString op = btn->GetLabel();
-
-    if (op == "MC") {
+    
+    // Perform the memory operation
+    if (op == "MC") {  // Memory Clear
         memoryValue = 0.0;
     }
-    else if (op == "MR") {
+    else if (op == "MR") {  // Memory Recall
         UpdateDisplay(memoryValue);
         newNumber = true;
     }
-    else if (op == "M+") {
+    else if (op == "M+") {  // Memory Add
         memoryValue += GetDisplayValue();
     }
-    else if (op == "M-") {
+    else if (op == "M-") {  // Memory Subtract
         memoryValue -= GetDisplayValue();
     }
-    else if (op == "MS") {
+    else if (op == "MS") {  // Memory Store
         memoryValue = GetDisplayValue();
     }
-
-    // Update memory indicator
-    wxStaticText* memIndicator = dynamic_cast<wxStaticText*>(
-        FindWindowByLabel("Memory: " + wxString::Format("%.1f", memoryValue - 0.1))
-    );
-    if (memIndicator) {
-        memIndicator->SetLabel("Memory: " + wxString::Format("%.1f", memoryValue));
-    }
+    
+    // Update the memory display
+    UpdateMemoryDisplay();
 }
 
+// Handle scientific functions
 void CalculatorFrame::OnScientificFunction(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     double value = GetDisplayValue();
     double result = 0.0;
-
+    
+    // Calculate the result based on the function
     if (btn->GetLabel() == "ln") {
         if (value > 0) {
             result = log(value);
         } else {
-            wxMessageBox("Cannot take log of non-positive value!", "Error", wxICON_ERROR);
+            wxMessageBox("Natural log requires a positive value", "Error", wxICON_ERROR);
             return;
         }
     }
@@ -421,7 +540,7 @@ void CalculatorFrame::OnScientificFunction(wxCommandEvent& event) {
         if (value > 0) {
             result = log10(value);
         } else {
-            wxMessageBox("Cannot take log of non-positive value!", "Error", wxICON_ERROR);
+            wxMessageBox("Log requires a positive value", "Error", wxICON_ERROR);
             return;
         }
     }
@@ -431,90 +550,99 @@ void CalculatorFrame::OnScientificFunction(wxCommandEvent& event) {
     else if (btn->GetLabel() == "10^x") {
         result = pow(10.0, value);
     }
-
+    
     UpdateDisplay(result);
     lastAnswer = result;
     newNumber = true;
 }
 
+// Handle constant buttons
 void CalculatorFrame::OnConstant(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     double value = 0.0;
-
+    
+    // Set the constant value
     if (btn->GetLabel() == "π") {
         value = M_PI;
     }
     else if (btn->GetLabel() == "e") {
-        value = M_E;
+        value = M_E;  // Euler's number
     }
-
+    
     UpdateDisplay(value);
     newNumber = true;
 }
 
+// Handle the negate button
 void CalculatorFrame::OnNegate(wxCommandEvent& event) {
     double value = GetDisplayValue();
     UpdateDisplay(-value);
 }
 
+// Handle the answer button
 void CalculatorFrame::OnAnswer(wxCommandEvent& event) {
     UpdateDisplay(lastAnswer);
     newNumber = true;
 }
 
+// Handle power functions
 void CalculatorFrame::OnPower(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     double value = GetDisplayValue();
     double result = 0.0;
-
+    
+    // Calculate the result
     if (btn->GetLabel() == "x^2") {
         result = value * value;
     }
     else if (btn->GetLabel() == "x^3") {
         result = value * value * value;
     }
-
+    
     UpdateDisplay(result);
     lastAnswer = result;
     newNumber = true;
 }
 
+// Handle root functions
 void CalculatorFrame::OnSquareRoot(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
     double value = GetDisplayValue();
     double result = 0.0;
-
+    
+    // Calculate the result
     if (btn->GetLabel() == "sqrt") {
         if (value >= 0) {
             result = sqrt(value);
         } else {
-            wxMessageBox("Cannot take square root of negative value!", "Error", wxICON_ERROR);
+            wxMessageBox("Cannot take square root of a negative number", "Error", wxICON_ERROR);
             return;
         }
     }
     else if (btn->GetLabel() == "cbrt") {
         result = cbrt(value);  // Cube root can handle negative values
     }
-
+    
     UpdateDisplay(result);
     lastAnswer = result;
     newNumber = true;
 }
 
+// Handle parenthesis buttons
 void CalculatorFrame::OnParenthesis(wxCommandEvent& event) {
     wxButton* btn = dynamic_cast<wxButton*>(event.GetEventObject());
-
+    
     if (btn->GetLabel() == "(") {
         // Save current state and push to stack
         if (!newNumber) {
             currentValue = GetDisplayValue();
         }
-
+        
         valueStack.push_back(currentValue);
         operationStack.push_back(currentOperation);
-
+        
         currentValue = 0.0;
-        currentOperation = "+";  // Default operation inside parenthesis
+        currentOperation = "+";  // Default operation
         newNumber = true;
     }
     else if (btn->GetLabel() == ")") {
@@ -526,54 +654,92 @@ void CalculatorFrame::OnParenthesis(wxCommandEvent& event) {
     }
 }
 
+// Update the display with a numeric value
 void CalculatorFrame::UpdateDisplay(double value) {
-    wxString output = wxString::Format("%.12f", value);
-    // Remove trailing zeros and possible . at end
-    while (output.Contains(".") && (output.Last() == '0' || output.Last() == '.')) {
-        output.RemoveLast();
+    // Format the number nicely
+    wxString output;
+    
+    // Handle very small numbers near zero
+    if (fabs(value) < 1e-12) {
+        output = "0";
     }
+    // Handle large numbers or small numbers
+    else if (fabs(value) > 1e9 || fabs(value) < 1e-6) {
+        output = wxString::Format("%.6e", value);
+    }
+    // Standard case
+    else {
+        output = wxString::Format("%.12f", value);
+        
+        // Remove trailing zeros and decimal point if needed
+        while (output.Contains(".") && (output.Last() == '0' || output.Last() == '.')) {
+            output.RemoveLast();
+        }
+    }
+    
     display->SetValue(output);
 }
 
+// Convert angle between degrees and radians
 double CalculatorFrame::ConvertAngle(double angle) {
-    if (!radianCheck->GetValue()) { // Convert degrees to radians
+    if (!radianCheck->GetValue()) { // If not using radians, convert degrees to radians
         return angle * M_PI / 180.0;
     }
     return angle;
 }
 
+// Get the value currently in the display
 double CalculatorFrame::GetDisplayValue() {
     return wxAtof(display->GetValue());
 }
 
-void CalculatorFrame::SetDisplayValue(double value) {
-    UpdateDisplay(value);
+// Update the memory display
+void CalculatorFrame::UpdateMemoryDisplay() {
+    // Format the memory value nicely for display
+    wxString memText;
+    
+    if (memoryValue == 0.0) {
+        memText = "Memory: 0";
+    } else {
+        memText = wxString::Format("Memory: %.6g", memoryValue);
+    }
+    
+    memIndicator->SetLabel(memText);
 }
 
+// Execute a pending operation
 void CalculatorFrame::ExecuteOperation(const wxString& op, double value) {
     double stackValue = valueStack.back();
     valueStack.pop_back();
-
+    
     wxString stackOp = operationStack.back();
     operationStack.pop_back();
-
+    
     double result = 0.0;
-
-    if (stackOp == "+") result = stackValue + value;
-    else if (stackOp == "-") result = stackValue - value;
-    else if (stackOp == "*") result = stackValue * value;
+    
+    // Perform the operation
+    if (stackOp == "+") {
+        result = stackValue + value;
+    }
+    else if (stackOp == "-") {
+        result = stackValue - value;
+    }
+    else if (stackOp == "*") {
+        result = stackValue * value;
+    }
     else if (stackOp == "/") {
         if (value != 0) {
             result = stackValue / value;
         } else {
-            wxMessageBox("Division by zero!", "Error", wxICON_ERROR);
+            wxMessageBox("Division by zero is not allowed", "Error", wxICON_ERROR);
             return;
         }
     }
     else if (stackOp == "^") {
         result = pow(stackValue, value);
     }
-
+    
+    // Push the result back for future operations
     valueStack.push_back(result);
     operationStack.push_back(op);
 }
