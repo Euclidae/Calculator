@@ -1,0 +1,87 @@
+# Scientific Calculator
+
+An advanced scientific calculator application built with WxWidgets.
+
+
+
+## Features
+
+- Basic arithmetic operations: addition, subtraction, multiplication, division
+- Scientific functions:
+  - Trigonometric functions: sin, cos, tan
+  - Inverse trigonometric functions: arcsin, arccos, arctan
+  - Logarithmic functions: ln, log
+  - Exponential functions: e^x, 10^x
+  - Power functions: square, cube, general exponentiation
+  - Square root and cube root
+- Mathematical constants: π, e
+- Memory operations: MC, MR, M+, M-, MS
+- Previous answer recall
+- Support for parentheses in expressions
+- Toggle between radians and degrees
+- Error handling for invalid operations
+
+## Requirements
+
+- C++14 compiler
+- CMake 3.10 or higher
+- WxWidgets library
+
+## Building the Application
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Euclidae/scientific-calculator.git
+   cd scientific-calculator
+   ```
+
+2. Create a build directory and run CMake:
+   ```bash
+   mkdir build
+   cd build
+   cmake ..
+   ```
+
+3. Build the project:
+   ```bash
+   make
+   ```
+
+4. Run the calculator:
+   ```bash
+   ./bin/scientific_calculator
+   ```
+
+## Usage
+
+- **Number buttons (0-9)**: Input numbers
+- **Operation buttons (+, -, *, /, ^)**: Perform arithmetic operations
+- **Trigonometric functions (sin, cos, tan)**: Perform trigonometric calculations
+- **Inverse trigonometric functions (asin, acos, atan)**: Calculate inverse trigonometric values
+- **Memory buttons**:
+  - **MC**: Clear memory
+  - **MR**: Recall memory value
+  - **M+**: Add display value to memory
+  - **M-**: Subtract display value from memory
+  - **MS**: Store display value to memory
+- **Special functions**:
+  - **ln, log**: Natural and base-10 logarithms
+  - **e^x, 10^x**: Exponential functions
+  - **x^2, x^3**: Square and cube
+  - **sqrt, cbrt**: Square root and cube root
+  - **π, e**: Mathematical constants
+- **Utility buttons**:
+  - **C**: Clear display and reset calculator
+  - **⌫**: Backspace (delete last digit)
+  - **±**: Negate the current value
+  - **Ans**: Recall last answer
+  - **( )**: Parentheses for complex expressions
+
+## License
+
+This project is open-source and available for anyone to use and modify.
+
+## Acknowledgments
+
+- Built using WxWidgets library
+- Created by Euclidae
